@@ -106,7 +106,7 @@ for i in range(T): # 2 is number iterations, time
 	resh = np.reshape(features[opt_arm_ind], (1, 10))
 	resh1 = np.reshape(features[opt_arm_ind], (10,1))
 	B[opt_arm_ind] = B[opt_arm_ind] + np.matmul(resh1, resh)
-	f[opt_arm_ind]= f[opt_arm_ind] = features[opt_arm_ind]*rew
+	f[opt_arm_ind]= f[opt_arm_ind] + features[opt_arm_ind]*rew
 	mu_hat[opt_arm_ind] = np.matmul(np.linalg.inv(B[opt_arm_ind]), f[opt_arm_ind])
 	
 	#end TS
