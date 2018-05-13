@@ -4,18 +4,30 @@ import math
 import matplotlib.pyplot as plt
 best_re = 0
 #######initialization
-T = 100000 # number of iterations
-
+T = 20000 # number of iterations
+regret_ind = [1]
+i=2 
+while i<= T:
+	regret_ind.append(i)
+	i+=2
+#print(regret_ind)
 #######
 #Ucb
+ucb_reg = []
 ucb_count = np.zeros(10)
 ucb_est = np.zeros(10)
 ucb_re = 0
 #######
 #LinUcb
+linucb_reg =[]
 linucb_re = 0
 linucb_count = np.zeros(10)
+best_count = np.zeros(10)
 theta_star = [] #mu_star is theta_star
+#explo_round = input("Fraction of Exploration Rounds:")
+#explo_round = float()
+ucb_para = input("UCB Parameter:")
+ucb_para = float(ucb_para)
 alpha = input("Alpha: ")
 alpha = float(alpha)
 ad_feat = []
@@ -26,6 +38,7 @@ for i in range(0,10):
 	temp = [x/s for x in temp]
 	ad_feat.append(temp)
 	t = random.sample(range(1,100),10)
+	t[i] = t[i] *10
 	s1 =sum(t)
 	t = [x/s1 for x in t]
 	theta_star.append(t)
@@ -42,6 +55,7 @@ for i in range(9):
 
 #######
 #TS
+ts_reg = []
 ts_rew = 0
 d = 10 #dimension
 delta = input("Delta : ") #preferably 0.05 
@@ -55,11 +69,36 @@ for i in range(d-1):
 	f = np.append([np.zeros(10)], f, axis = 0)
 mu_star = theta_star
 eps = 1/(math.log(int(T))) #from remark 2 of the paper TS for CMAB
-R = 0.1
+R = 0.01
 v = R * math.sqrt((24/eps)*d*(math.log(1/delta)))
+m = 0
+#######
+best_reg = []
 
+#################
+#Creating 100 features of 100 users 
+temp1 = random.sample(range(1, 100),10)
+
+ind = 0 #to generate context randomly from 0 to 9
+temp1[ind] = temp1[ind] * 10 #here context is more similar to the first
+s =sum(temp1)
+temp1 = [x/s for x in temp1]
+temp1 = np.array(temp1)
+feature = [temp1]
+for i in range(99):
+	temp1 = random.sample(range(1, 100),10)
+
+	ind = int(i/10)#to generate context randomly from 0 to 9
+	temp1[ind] = temp1[ind] *10 #here context is more similar to the first
+	s =sum(temp1)
+	temp1 = [x/s for x in temp1]
+	temp1 = np.array(temp1)
+	feature = np.append(feature, [temp1], axis=0)
+#print(feature)
+#print(len(feature))
 for i in range(T): # 2 is number iterations, time 
 	#observe features
+	'''
 	temp1 = random.sample(range(1, 100),10)
 
 	ind = random.randint(0,9)#to generate context randomly from 0 to 9
@@ -68,7 +107,10 @@ for i in range(T): # 2 is number iterations, time
 	temp1 = [x/s for x in temp1]
 	temp1 = np.array(temp1)
 	#temp1 is a random user
-
+	'''
+	random_no = np.random.rand()
+	ind = random.randint(0,99)
+	temp1= feature[ind]
 	for j in range(len(ad_feat)):
 		if j ==0 :
 			features = [ad_feat[j] * temp1]
@@ -101,12 +143,16 @@ for i in range(T): # 2 is number iterations, time
 
 	rew = np.matmul(np.transpose(features[opt_arm_ind]), mu_star[opt_arm_ind])
 	ts_rew += rew
+	if random_no < rew :
+		reward2 = 1
+	else :
+		reward2 =0
 	#####
 	#update step
 	resh = np.reshape(features[opt_arm_ind], (1, 10))
 	resh1 = np.reshape(features[opt_arm_ind], (10,1))
 	B[opt_arm_ind] = B[opt_arm_ind] + np.matmul(resh1, resh)
-	f[opt_arm_ind]= f[opt_arm_ind] + features[opt_arm_ind]*rew
+	f[opt_arm_ind]= f[opt_arm_ind] + features[opt_arm_ind]*reward2
 	mu_hat[opt_arm_ind] = np.matmul(np.linalg.inv(B[opt_arm_ind]), f[opt_arm_ind])
 	
 	#end TS
@@ -114,19 +160,29 @@ for i in range(T): # 2 is number iterations, time
 
 	####################################
 	#ucb
+	
 	if i < 10:
 		temp_re = np.matmul(np.transpose(features[i]), theta_star[i])
 		ucb_count[i] +=1
-		ucb_est[i] = temp_re
+		if random_no < temp_re :
+			reward1 = 1
+		else :
+			reward1 =0
+		ucb_est[i] = reward1
 		ucb_re += temp_re
 	else:
 		t1 = np.zeros(10)
 		for k in range(10):
-			t1[k] = ucb_est[k] + (alpha/(math.sqrt(ucb_count[k])))
+			estimate = math.sqrt((ucb_para * math.log(i))/(2*ucb_count[k]))
+			t1[k] = ucb_est[k] + estimate
 		best_ind = np.argmax(t1)
 		ucb_count[best_ind] += 1 
 		temp_re = np.matmul(np.transpose(features[best_ind]), theta_star[best_ind])
-		ucb_est[best_ind] = ((ucb_count[best_ind]-1)*ucb_est[best_ind] + temp_re)/ ucb_count[best_ind]
+		if random_no < temp_re :
+			reward1 = 1
+		else :
+			reward1 =0
+		ucb_est[best_ind] = ((ucb_count[best_ind]-1)*ucb_est[best_ind] + reward1)/ ucb_count[best_ind]
 		ucb_re += temp_re
 
 	#end UCB
@@ -139,7 +195,7 @@ for i in range(T): # 2 is number iterations, time
 
 	b_ind = np.argmax(t2)
 	best_re += t2[b_ind] 
-
+	best_count[b_ind] +=1
 	#end
 	####################################
 
@@ -158,17 +214,43 @@ for i in range(T): # 2 is number iterations, time
 		p[k] = alpha * (math.sqrt(np.matmul(np.matmul(temp3, temp2), features[k]))) + np.matmul(np.transpose(est_theta[k]), features[k]) 
 	opt_ind = np.argmax(p) 
 	linucb_count[opt_ind] += 1
+
+	 
 	temp_rew = np.matmul(np.transpose(features[opt_ind]), theta_star[opt_ind])
+	if random_no < temp_rew:
+		reward = 1
+	else:
+		reward =0
 	linucb_re += temp_rew
 	res = np.reshape(features[opt_ind], (1, 10))
 	res1 = np.reshape(features[opt_ind], (10,1))
 	A[opt_ind] = A[opt_ind] + np.matmul(res1, res)
-	b[opt_ind] = b[opt_ind] + temp_rew * features[opt_ind]
+	b[opt_ind] = b[opt_ind] + reward * features[opt_ind]
 
 	#end LinUCB
 	##########
+
+	if i == regret_ind[m]:
+		linucb_reg.append(linucb_re)
+		ucb_reg.append(ucb_re)
+		ts_reg.append(ts_rew)
+		best_reg.append(best_re)
+		m += 1
+linucb_reg = np.array(linucb_reg)
+print(linucb_reg)
+ucb_reg = np.array(ucb_reg)
+ts_reg = np.array(ts_reg)
+best_reg = np.array(best_reg)
+diff_linucb_reg = best_reg - linucb_reg
+diff_ucb_reg = best_reg - ucb_reg
+diff_ts_reg = best_reg - ts_reg
+regret_ind= regret_ind[:-1]
+plt.plot(regret_ind, diff_linucb_reg, 'g', regret_ind, diff_ucb_reg, 'b', regret_ind, diff_ts_reg, 'k')
+print(ucb_count)
+print(best_count)
 print(linucb_count)
 print (ucb_re)
 print(linucb_re)
 print(ts_rew)
 print(best_re)
+plt.show()
